@@ -20,7 +20,8 @@ class NoDataAvailable(RuntimeError):
     """Raised when no suitable SEVIRI products are available for the requested window."""
     pass
 
-def download_latest_data(out_dir):
+
+def find_products():
     consumer_key = os.environ["EUMETSAT_KEY"]
     consumer_secret = os.environ["EUMETSAT_SECRET"]
 
@@ -35,7 +36,6 @@ def download_latest_data(out_dir):
     end = start + timedelta(days=1)
 
     bbox = "-25.0,33.0,45.0,72.0"  # broad Europe region
-    products = None
     for offset_hours in (0, 1, 2):
         attempt_start = start - timedelta(hours=offset_hours)
         attempt_end = end - timedelta(hours=offset_hours)
@@ -58,85 +58,62 @@ def download_latest_data(out_dir):
                 attempt_start.isoformat(),
                 attempt_end.isoformat(),
             )
-            break
+            return products, products.total_results
         logger.warning(
             "No MSG SEVIRI data found between %s and %s, retrying with an additional one-hour offset.",
             attempt_start.isoformat(),
             attempt_end.isoformat(),
         )
-    else:
-        raise NoDataAvailable(
-            "No MSG SEVIRI data found after checking the default window and two one-hour fallbacks."
-        )
+    raise NoDataAvailable(
+        "No MSG SEVIRI data found after checking the default window and two one-hour fallbacks."
+    )
 
+
+def extract_and_generate(products, total_results, out_dir):
     out_dir.mkdir(parents=True, exist_ok=True)
-    successful = 0
-    for i, product in enumerate(products, 1):
-        try:
-            with product.open() as fsrc:
-                dest = out_dir / fsrc.name
-                with open(dest, "wb") as fdst:
-                    shutil.copyfileobj(fsrc, fdst)
-                logger.info("[%d/%d] Downloaded %s", i, products.total_results, fsrc.name)
-                successful += 1
-        except Exception as e:
-            logger.warning("[%d] Failed to download %s: %s", i, product, e)
-
-    if successful == 0:
-        raise RuntimeError("Download attempt completed but no products were saved.")
-
-def extract_and_generate(out_dir):
-    zip_files = sorted(out_dir.glob("*.zip"))
-    if not zip_files:
-        raise RuntimeError("No zip archives found after download.")
-
     frames = []
-    with tempfile.TemporaryDirectory(dir=out_dir) as extract_tmp, tempfile.TemporaryDirectory(
-        dir=out_dir
-    ) as rgb_tmp:
-        extract_dir = pathlib.Path(extract_tmp)
-        rgb_dir = pathlib.Path(rgb_tmp)
-        logger.info("Processing %d archives sequentially", len(zip_files))
 
-        for index, zf in enumerate(zip_files, start=1):
-            logger.info("Extracting archive %d/%d: %s", index, len(zip_files), zf.name)
+    for index, product in enumerate(products, start=1):
+        with tempfile.TemporaryDirectory(dir=out_dir) as tmp_dir:
+            tmp_path = pathlib.Path(tmp_dir)
+            zip_path = tmp_path / "product.zip"
             try:
-                with zipfile.ZipFile(zf, "r") as zip_ref:
-                    zip_ref.extractall(extract_dir)
-            except zipfile.BadZipFile as exc:
-                logger.warning("Skipping corrupted archive %s: %s", zf.name, exc)
+                with product.open() as fsrc, open(zip_path, "wb") as fdst:
+                    shutil.copyfileobj(fsrc, fdst)
+                    name = getattr(fsrc, "name", f"product_{index}.zip")
+                logger.info("[%d/%d] Downloaded %s", index, total_results, name)
+            except Exception as exc:
+                logger.warning("[%d/%d] Failed to download product %s: %s", index, total_results, product, exc)
                 continue
 
-            nat_files = sorted(extract_dir.glob("*.nat"))
+            try:
+                with zipfile.ZipFile(zip_path, "r") as zip_ref:
+                    zip_ref.extractall(tmp_path)
+            except zipfile.BadZipFile as exc:
+                logger.warning("Skipping corrupted archive %s: %s", name, exc)
+                continue
+
+            nat_files = sorted(tmp_path.glob("*.nat"))
             if not nat_files:
-                logger.warning("No .nat files found in archive %s", zf.name)
+                logger.warning("No .nat files found in archive %s", name)
+                continue
+
             for nat in nat_files:
                 try:
                     scn = Scene(reader="seviri_l1b_native", filenames=[str(nat)])
                     scn.load(["natural_color"])
-                    scn = scn.resample("msg_seviri_europe")  # cropped area
-                    out_png = rgb_dir / f"{nat.stem}.png"
+                    scn = scn.resample("msg_seviri_europe")
+                    out_png = tmp_path / f"{nat.stem}.png"
                     scn.save_dataset("natural_color", filename=str(out_png))
                     frames.append(iio.imread(out_png))
-                except Exception as e:
-                    logger.warning("Error processing %s: %s", nat.name, e)
-                finally:
-                    if nat.exists():
-                        nat.unlink()
-            for png_file in rgb_dir.glob("*.png"):
-                png_file.unlink()
-            for extracted in extract_dir.iterdir():
-                if extracted.is_file():
-                    extracted.unlink()
-                else:
-                    shutil.rmtree(extracted)
-            zf.unlink(missing_ok=True)
+                except Exception as exc:
+                    logger.warning("Error processing %s: %s", nat.name, exc)
 
     if not frames:
         raise RuntimeError("No frames generated from extracted data.")
 
     gif_path = out_dir / "Meteosat_Europe.gif"
-    iio.imwrite(gif_path, frames, duration=0.25)
+    iio.imwrite(gif_path, frames, duration=0.25, loop=0)
     logger.info("GIF saved to %s", gif_path)
     return gif_path
 
@@ -189,8 +166,8 @@ if __name__ == "__main__":
     out_dir = pathlib.Path("downloads")
     gif_path = None
     try:
-        download_latest_data(out_dir)
-        gif_path = extract_and_generate(out_dir)
+        products, total_results = find_products()
+        gif_path = extract_and_generate(products, total_results, out_dir)
         post_to_x(SUCCESS_MESSAGE, gif_path=gif_path)
     except NoDataAvailable as exc:
         logger.warning("No data available: %s", exc)

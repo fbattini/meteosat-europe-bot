@@ -8,7 +8,7 @@
 - ~~`.github/workflows/post.yml:21` — Bare `pip install` is brittle for heavy deps. Upgrade `pip` and add caching to keep the daily job reliable.~~ (addressed in workflow)
 
 ### Questions / Risks
-- Keeping all granules maximises fidelity but may impact runtime and disk use; monitor workflow duration (~15–20 min currently) and adjust if the runner approaches its 45-minute timeout or storage limits.
+- Keeping all granules maximises fidelity but may still push runtime; monitor future runs and consider thinning the set if the job nears its timeout.
 - Current automatic fallback posts a text update after three hourly attempts; confirm if that messaging is sufficient or if we should escalate (e.g., notify maintainers).
 
 ### Suggested Improvements
@@ -28,7 +28,7 @@
 - On successful runs the `downloads/` directory is now removed to keep the workspace clean.
 - The GitHub Actions workflow upgrades `pip`, caches dependencies, enforces a timeout, and prevents overlapping runs.
 - Retain all available granules for GIF generation as per current plan, and post a text update when no imagery is available after three hourly attempts.
-- Sequentially extract and process each archive in temporary directories, deleting zips/frames as we go to stay within GitHub runner disk limits.
+- Stream each product end-to-end: download to a temporary zip, extract/process, then discard immediately to keep disk usage bounded within GitHub runner limits.
 
 ### Notes from X API Docs Review
 - Ensure posting uses OAuth 1.0a user context, per X API v2 “manage Posts” guidance; v2 `POST /2/tweets` requires signed requests with API key/secret plus access token/secret.
