@@ -29,6 +29,7 @@
 - The GitHub Actions workflow upgrades `pip`, caches dependencies, enforces a timeout, and prevents overlapping runs.
 - Retain all available granules for GIF generation as per current plan, and post a text update when no imagery is available after three hourly attempts.
 - Stream each product end-to-end: download to a temporary zip, extract/process, then discard immediately to keep disk usage bounded within GitHub runner limits.
+- Resample using a custom pyresample area definition so we no longer depend on the missing `msg_seviri_europe` preset in the Actions environment.
 
 ### Notes from X API Docs Review
 - Ensure posting uses OAuth 1.0a user context, per X API v2 “manage Posts” guidance; v2 `POST /2/tweets` requires signed requests with API key/secret plus access token/secret.

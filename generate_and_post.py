@@ -11,6 +11,7 @@ import eumdac
 import imageio.v3 as iio
 import tweepy
 from satpy import Scene
+from pyresample import create_area_def
 
 
 logger = logging.getLogger(__name__)
@@ -19,6 +20,14 @@ logger = logging.getLogger(__name__)
 class NoDataAvailable(RuntimeError):
     """Raised when no suitable SEVIRI products are available for the requested window."""
     pass
+
+
+EUROPE_AREA = create_area_def(
+    "meteosat_europe_latlon",
+    {"proj": "latlong"},
+    area_extent=(-25.0, 33.0, 45.0, 72.0),
+    resolution=(0.05, 0.05),
+)
 
 
 def find_products():
@@ -102,7 +111,7 @@ def extract_and_generate(products, total_results, out_dir):
                 try:
                     scn = Scene(reader="seviri_l1b_native", filenames=[str(nat)])
                     scn.load(["natural_color"])
-                    scn = scn.resample("msg_seviri_europe")
+                    scn = scn.resample(EUROPE_AREA)
                     out_png = tmp_path / f"{nat.stem}.png"
                     scn.save_dataset("natural_color", filename=str(out_png))
                     frames.append(iio.imread(out_png))
