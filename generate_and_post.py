@@ -6,6 +6,7 @@ import pathlib
 import shutil
 import tempfile
 import zipfile
+import warnings
 
 import eumdac
 import imageio.v3 as iio
@@ -15,6 +16,12 @@ from pyresample import create_area_def
 
 
 logger = logging.getLogger(__name__)
+
+warnings.filterwarnings(
+    "ignore",
+    message="invalid value encountered",
+    category=RuntimeWarning,
+)
 
 
 class NoDataAvailable(RuntimeError):
