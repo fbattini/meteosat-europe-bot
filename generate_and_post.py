@@ -37,7 +37,7 @@ EUROPE_AREA = create_area_def(
 )
 
 # Process only one scene every N products to keep runtime manageable.
-PRODUCT_SAMPLE_STEP = 32
+PRODUCT_SAMPLE_STEP = 1
 
 
 def find_products():
@@ -92,11 +92,14 @@ def extract_and_generate(products, total_results, out_dir, sample_step=PRODUCT_S
     out_dir.mkdir(parents=True, exist_ok=True)
     frames = []
 
-    logger.info(
-        "Processing every %dth product (%d total available)",
-        sample_step,
-        total_results,
-    )
+    if sample_step > 1:
+        logger.info(
+            "Processing every %dth product (%d total available)",
+            sample_step,
+            total_results,
+        )
+    else:
+        logger.info("Processing every product (%d total available)", total_results)
 
     for index, product in enumerate(products, start=1):
         if (index - 1) % sample_step != 0:
