@@ -4,6 +4,7 @@ import sys
 from datetime import datetime, timedelta, timezone
 import pathlib
 import shutil
+import tempfile
 import zipfile
 
 import eumdac
@@ -85,34 +86,51 @@ def download_latest_data(out_dir):
         raise RuntimeError("Download attempt completed but no products were saved.")
 
 def extract_and_generate(out_dir):
-    extract_dir = out_dir / "extracted"
-    if extract_dir.exists():
-        shutil.rmtree(extract_dir)
-    extract_dir.mkdir(parents=True, exist_ok=True)
-    logger.info("Extracting archives into %s", extract_dir)
-
-    for zf in out_dir.glob("*.zip"):
-        with zipfile.ZipFile(zf, "r") as zip_ref:
-            zip_ref.extractall(extract_dir)
-
-    nat_files = sorted(extract_dir.glob("*.nat"))
-    rgb_dir = out_dir / "rgb_frames"
-    if rgb_dir.exists():
-        shutil.rmtree(rgb_dir)
-    rgb_dir.mkdir(parents=True, exist_ok=True)
-    logger.info("Processing %d .nat files", len(nat_files))
+    zip_files = sorted(out_dir.glob("*.zip"))
+    if not zip_files:
+        raise RuntimeError("No zip archives found after download.")
 
     frames = []
-    for nat in nat_files:
-        try:
-            scn = Scene(reader="seviri_l1b_native", filenames=[str(nat)])
-            scn.load(["natural_color"])
-            scn = scn.resample("msg_seviri_europe")  # cropped area
-            out_png = rgb_dir / f"{nat.stem}.png"
-            scn.save_dataset("natural_color", filename=str(out_png))
-            frames.append(iio.imread(out_png))
-        except Exception as e:
-            logger.warning("Error processing %s: %s", nat.name, e)
+    with tempfile.TemporaryDirectory(dir=out_dir) as extract_tmp, tempfile.TemporaryDirectory(
+        dir=out_dir
+    ) as rgb_tmp:
+        extract_dir = pathlib.Path(extract_tmp)
+        rgb_dir = pathlib.Path(rgb_tmp)
+        logger.info("Processing %d archives sequentially", len(zip_files))
+
+        for index, zf in enumerate(zip_files, start=1):
+            logger.info("Extracting archive %d/%d: %s", index, len(zip_files), zf.name)
+            try:
+                with zipfile.ZipFile(zf, "r") as zip_ref:
+                    zip_ref.extractall(extract_dir)
+            except zipfile.BadZipFile as exc:
+                logger.warning("Skipping corrupted archive %s: %s", zf.name, exc)
+                continue
+
+            nat_files = sorted(extract_dir.glob("*.nat"))
+            if not nat_files:
+                logger.warning("No .nat files found in archive %s", zf.name)
+            for nat in nat_files:
+                try:
+                    scn = Scene(reader="seviri_l1b_native", filenames=[str(nat)])
+                    scn.load(["natural_color"])
+                    scn = scn.resample("msg_seviri_europe")  # cropped area
+                    out_png = rgb_dir / f"{nat.stem}.png"
+                    scn.save_dataset("natural_color", filename=str(out_png))
+                    frames.append(iio.imread(out_png))
+                except Exception as e:
+                    logger.warning("Error processing %s: %s", nat.name, e)
+                finally:
+                    if nat.exists():
+                        nat.unlink()
+            for png_file in rgb_dir.glob("*.png"):
+                png_file.unlink()
+            for extracted in extract_dir.iterdir():
+                if extracted.is_file():
+                    extracted.unlink()
+                else:
+                    shutil.rmtree(extracted)
+            zf.unlink(missing_ok=True)
 
     if not frames:
         raise RuntimeError("No frames generated from extracted data.")
