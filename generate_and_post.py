@@ -25,9 +25,12 @@ class NoDataAvailable(RuntimeError):
 EUROPE_AREA = create_area_def(
     "meteosat_europe_latlon",
     {"proj": "latlong"},
-    area_extent=(-25.0, 33.0, 45.0, 72.0),
+    area_extent=(-25.0, 32.0, 45.0, 70.0),
     resolution=(0.05, 0.05),
 )
+
+# Process only one scene every N products to keep runtime manageable.
+PRODUCT_SAMPLE_STEP = 8
 
 
 def find_products():
@@ -78,11 +81,19 @@ def find_products():
     )
 
 
-def extract_and_generate(products, total_results, out_dir):
+def extract_and_generate(products, total_results, out_dir, sample_step=PRODUCT_SAMPLE_STEP):
     out_dir.mkdir(parents=True, exist_ok=True)
     frames = []
 
     for index, product in enumerate(products, start=1):
+        if (index - 1) % sample_step != 0:
+            logger.debug(
+                "Skipping product %d/%d due to sampling (step=%d)",
+                index,
+                total_results,
+                sample_step,
+            )
+            continue
         with tempfile.TemporaryDirectory(dir=out_dir) as tmp_dir:
             tmp_path = pathlib.Path(tmp_dir)
             zip_path = tmp_path / "product.zip"
