@@ -85,6 +85,12 @@ def extract_and_generate(products, total_results, out_dir, sample_step=PRODUCT_S
     out_dir.mkdir(parents=True, exist_ok=True)
     frames = []
 
+    logger.info(
+        "Processing every %dth product (%d total available)",
+        sample_step,
+        total_results,
+    )
+
     for index, product in enumerate(products, start=1):
         if (index - 1) % sample_step != 0:
             logger.debug(
@@ -134,7 +140,13 @@ def extract_and_generate(products, total_results, out_dir, sample_step=PRODUCT_S
 
     gif_path = out_dir / "Meteosat_Europe.gif"
     iio.imwrite(gif_path, frames, duration=0.25, loop=0)
-    logger.info("GIF saved to %s", gif_path)
+    logger.info(
+        "GIF saved to %s using %d frames out of %d products (step=%d)",
+        gif_path,
+        len(frames),
+        total_results,
+        sample_step,
+    )
     return gif_path
 
 def post_to_x(message, gif_path=None):
