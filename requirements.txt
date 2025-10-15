@@ -1,0 +1,4 @@
+eumdac
+satpy
+imageio[ffmpeg]
+tweepy
