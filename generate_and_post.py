@@ -111,6 +111,22 @@ def extract_and_generate(products, total_results, out_dir, sample_step=PRODUCT_S
                 sample_step,
             )
             continue
+
+        quality_indicator = (
+            getattr(product, "properties", {}) or {}
+        ).get("qualityIndicator") or (
+            getattr(product, "metadata", {}) or {}
+        ).get("qualityIndicator")
+        if quality_indicator and str(quality_indicator).upper() not in {"OK", "NOMINAL"}:
+            logger.warning(
+                "[%d/%d] Skipping %s due to qualityIndicator=%s",
+                index,
+                total_results,
+                getattr(product, "id", product),
+                quality_indicator,
+            )
+            continue
+
         with tempfile.TemporaryDirectory(dir=out_dir) as tmp_dir:
             tmp_path = pathlib.Path(tmp_dir)
             zip_path = tmp_path / "product.zip"
@@ -169,7 +185,7 @@ def build_success_message() -> str:
         "A peaceful orbit above Europe.",
         "I hope you had a beautiful day under this sky.",
         "Let's hope today brings even clearer skies.",
-        "Clouds may come and go,beauty stays above.",
+        "Clouds may come and go, beauty stays above.",
         "From 36,000 km away, this was yesterday’s Europe.",
         "Every day, another view of our shared atmosphere.",
         "A reminder of how small and connected we all are.",
