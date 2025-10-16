@@ -1,4 +1,4 @@
-# Meteosat Europe Bot
+# Europe From Space - Meteosat Europe Bot
 
 **Automatic daily satellite animation of Europe from EUMETSAT’s Meteosat SEVIRI.**  
 Generated and posted every morning (hopefully) to show yesterday’s clouds, snow, and sunlight from 36,000 km above 🌍  
