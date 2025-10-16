@@ -199,7 +199,21 @@ def post_to_x(message, gif_path=None):
     if gif_path is not None:
         api_v1 = tweepy.API(auth)
         logger.info("Uploading media %s", gif_path)
-        media = api_v1.media_upload(filename=str(gif_path))
+        file_size = gif_path.stat().st_size
+        upload_kwargs = {
+            "filename": str(gif_path),
+            "media_category": "tweet_gif",
+        }
+        if file_size > 5 * 1024 * 1024:
+            upload_kwargs["chunked"] = True
+        logger.info(
+            "Uploading media %s (%.2f MB)%s",
+            gif_path,
+            file_size / (1024 * 1024),
+            " with chunked upload" if "chunked" in upload_kwargs else "",
+        )
+        media = api_v1.media_upload(**upload_kwargs)
+
         media_id = media.media_id_string
 
     client = tweepy.Client(
