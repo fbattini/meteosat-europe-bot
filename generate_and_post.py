@@ -41,7 +41,7 @@ EUROPE_AREA = create_area_def(
 PRODUCT_SAMPLE_STEP = 1
 # Optional: Set to a tuple like (30, 50) to process only that index range for debugging
 # Set to None to process all products
-DEBUG_INDEX_RANGE = (44, 48)  # e.g. (42, 48) to process only products 42-48
+DEBUG_INDEX_RANGE = None  # e.g. (42, 48) to process only products 42-48
 
 
 def find_products():
