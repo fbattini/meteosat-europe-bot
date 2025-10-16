@@ -92,6 +92,7 @@ def find_products():
 def extract_and_generate(products, total_results, out_dir, sample_step=PRODUCT_SAMPLE_STEP):
     out_dir.mkdir(parents=True, exist_ok=True)
     frames = []
+    palette_base = None
 
     if sample_step > 1:
         logger.info(
@@ -143,9 +144,16 @@ def extract_and_generate(products, total_results, out_dir, sample_step=PRODUCT_S
                     out_png = tmp_path / f"{nat.stem}.png"
                     scn.save_dataset("natural_color", filename=str(out_png))
                     with Image.open(out_png) as img:
-                        frames.append(
-                            img.convert("P", palette=Image.ADAPTIVE).copy()
-                        )
+                        rgb = img.convert("RGB")
+                        if palette_base is None:
+                            pal_frame = rgb.convert("P", palette=Image.ADAPTIVE, colors=256)
+                            palette_base = pal_frame.copy()
+                            frames.append(pal_frame.copy())
+                        else:
+                            pal_frame = rgb.quantize(
+                                palette=palette_base, dither=Image.NONE
+                            )
+                            frames.append(pal_frame.copy())
                 except Exception as exc:
                     logger.warning("Error processing %s: %s", nat.name, exc)
 
