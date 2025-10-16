@@ -34,12 +34,11 @@ EUROPE_AREA = create_area_def(
     "meteosat_europe_latlon",
     {"proj": "latlong"},
     area_extent=(-25.0, 32.0, 45.0, 70.0),
-    resolution=(0.1, 0.1),
+    resolution=(0.06, 0.06),
 )
 
 # Process only one scene every N products to keep runtime manageable.
 PRODUCT_SAMPLE_STEP = 16
-DEBUG_INDEX_RANGE = None  # e.g. (42, 48) to process only that slice
 
 
 def find_products():
@@ -104,10 +103,6 @@ def extract_and_generate(products, total_results, out_dir, sample_step=PRODUCT_S
         logger.info("Processing every product (%d total available)", total_results)
 
     for index, product in enumerate(products, start=1):
-        if DEBUG_INDEX_RANGE:
-            start_idx, end_idx = DEBUG_INDEX_RANGE
-            if index < start_idx or index > end_idx:
-                continue
         if (index - 1) % sample_step != 0:
             logger.debug(
                 "Skipping product %d/%d due to sampling (step=%d)",
