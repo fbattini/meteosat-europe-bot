@@ -39,6 +39,7 @@ EUROPE_AREA = create_area_def(
 
 # Process only one scene every N products to keep runtime manageable.
 PRODUCT_SAMPLE_STEP = 1
+DEBUG_INDEX_RANGE = (42, 48)  # e.g. (42, 48) to restrict processing
 
 
 def find_products():
@@ -105,6 +106,10 @@ def extract_and_generate(products, total_results, out_dir, sample_step=PRODUCT_S
         logger.info("Processing every product (%d total available)", total_results)
 
     for index, product in enumerate(products, start=1):
+        if DEBUG_INDEX_RANGE:
+            start_idx, end_idx = DEBUG_INDEX_RANGE
+            if index < start_idx or index > end_idx:
+                continue
         if (index - 1) % sample_step != 0:
             logger.debug(
                 "Skipping product %d/%d due to sampling (step=%d)",
@@ -164,16 +169,10 @@ def extract_and_generate(products, total_results, out_dir, sample_step=PRODUCT_S
 
                     if caught_warnings:
                         for warn in caught_warnings:
-                            logger.debug("Reader warning for %s: %s", nat.name, warn.message)
-                        first_warning = caught_warnings[0]
-                        warn_text = str(first_warning.message)
-                        if "quality flag" in warn_text.lower():
+                            logger.info("Reader warning for %s: %s", nat.name, warn.message)
+                        if any("quality flag" in str(w.message).lower() for w in caught_warnings):
                             skipped_warning += 1
-                            logger.warning(
-                                "Skipping %s due to quality warning: %s",
-                                nat.name,
-                                warn_text,
-                            )
+                            logger.warning("Skipping %s due to SEVIRI quality flag.", nat.name)
                             continue
 
                     out_png = tmp_path / f"{nat.stem}.png"
