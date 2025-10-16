@@ -34,7 +34,7 @@ EUROPE_AREA = create_area_def(
     "meteosat_europe_latlon",
     {"proj": "latlong"},
     area_extent=(-25.0, 32.0, 45.0, 70.0),
-    resolution=(0.1, 0.1),
+    resolution=(0.06, 0.06),
 )
 
 # Process only one scene every N products to keep runtime manageable.
@@ -176,11 +176,52 @@ def build_success_message() -> str:
         "Yesterday’s Earth from space!",
     ]
     opener = random.choice(openers)
+
+    core_tags = ["#Meteosat", "#EUMETSAT", "#EarthObservation"]
+    science_pool = [
+        "#SatelliteImagery",
+        "#WeatherSatellite",
+        "#RemoteSensing",
+        "#Geostationary",
+    ]
+    public_pool = [
+        "#FromSpace",
+        "#OurPlanet",
+        "#EarthFromSpace",
+        "#PlanetEarth",
+        "#BlueMarble",
+        "#Weather",
+        "#Clouds",
+        "#Storms",
+        "#Climate",
+        "#PicOfTheDay",
+        "#PhotoOfTheDay",
+        "#SpacePhotography",
+        "#NaturePhotography",
+        "#GoodMorningEurope",
+        "#YesterdayFromSpace",
+        "#DailyView",
+        "#SkyWatch",
+        "#Satellite",
+        "#Space",
+        "#Orbit",
+        "#SpaceScience",
+    ]
+
+    hashtag_set = set(core_tags)
+    science_choice = random.sample(science_pool, k=1)
+    hashtag_set.update(science_choice)
+    public_choice = random.sample(public_pool, k=2)
+    hashtag_set.update(public_choice)
+    hashtag_list = list(hashtag_set)
+    random.shuffle(hashtag_list)
+    hashtags = " ".join(hashtag_list)
+
     return (
         f"{opener}\n\n"
         f"Meteosat SEVIRI view over Europe – {date_str}\n"
         "Data © EUMETSAT | Natural Color Composite\n"
-        "#Meteosat #EUMETSAT #EarthObservation"
+        f"{hashtags}"
     )
 
 def post_to_x(message, gif_path=None):
