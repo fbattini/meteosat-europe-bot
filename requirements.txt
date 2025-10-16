@@ -1,5 +1,4 @@
 eumdac
 satpy
-pyresample
-pillow
+imageio[ffmpeg]
 tweepy
