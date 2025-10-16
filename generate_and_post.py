@@ -39,7 +39,7 @@ EUROPE_AREA = create_area_def(
 
 # Process only one scene every N products to keep runtime manageable.
 PRODUCT_SAMPLE_STEP = 1
-DEBUG_INDEX_RANGE = (42, 48)  # e.g. (42, 48) to restrict processing
+DEBUG_INDEX_RANGE = (35, 70)  # e.g. (42, 48) to restrict processing
 
 
 def find_products():
@@ -168,8 +168,6 @@ def extract_and_generate(products, total_results, out_dir, sample_step=PRODUCT_S
                         scn = scn.resample(EUROPE_AREA)
 
                     if caught_warnings:
-                        for warn in caught_warnings:
-                            logger.info("Reader warning for %s: %s", nat.name, warn.message)
                         if any("quality flag" in str(w.message).lower() for w in caught_warnings):
                             skipped_warning += 1
                             logger.warning("Skipping %s due to SEVIRI quality flag.", nat.name)
