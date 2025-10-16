@@ -34,7 +34,7 @@ EUROPE_AREA = create_area_def(
     "meteosat_europe_latlon",
     {"proj": "latlong"},
     area_extent=(-25.0, 32.0, 45.0, 70.0),
-    resolution=(0.07, 0.07),
+    resolution=(0.08, 0.08),
 )
 
 # Process only one scene every N products to keep runtime manageable.
