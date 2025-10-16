@@ -10,10 +10,10 @@ import zipfile
 import warnings
 
 import eumdac
-import imageio.v3 as iio
 import tweepy
 from satpy import Scene
 from pyresample import create_area_def
+from PIL import Image
 
 
 logger = logging.getLogger(__name__)
@@ -142,7 +142,10 @@ def extract_and_generate(products, total_results, out_dir, sample_step=PRODUCT_S
                     scn = scn.resample(EUROPE_AREA)
                     out_png = tmp_path / f"{nat.stem}.png"
                     scn.save_dataset("natural_color", filename=str(out_png))
-                    frames.append(iio.imread(out_png))
+                    with Image.open(out_png) as img:
+                        frames.append(
+                            img.convert("P", palette=Image.ADAPTIVE).copy()
+                        )
                 except Exception as exc:
                     logger.warning("Error processing %s: %s", nat.name, exc)
 
@@ -150,13 +153,26 @@ def extract_and_generate(products, total_results, out_dir, sample_step=PRODUCT_S
         raise RuntimeError("No frames generated from extracted data.")
 
     gif_path = out_dir / "Meteosat_Europe.gif"
-    iio.imwrite(gif_path, frames, duration=0.25, loop=0)
+    duration_ms = int(0.25 * 1000)
+    first_frame, *remaining_frames = frames
+    first_frame.save(
+        gif_path,
+        format="GIF",
+        save_all=True,
+        append_images=remaining_frames,
+        duration=duration_ms,
+        loop=0,
+        optimize=True,
+        disposal=2,
+    )
+    size_mb = gif_path.stat().st_size / (1024 * 1024)
     logger.info(
-        "GIF saved to %s using %d frames out of %d products (step=%d)",
+        "GIF saved to %s using %d frames out of %d products (step=%d, %.2f MB)",
         gif_path,
         len(frames),
         total_results,
         sample_step,
+        size_mb,
     )
     return gif_path
 
@@ -165,15 +181,15 @@ def build_success_message() -> str:
     yesterday = datetime.now(timezone.utc).date() - timedelta(days=1)
     date_str = yesterday.strftime("%B %d, %Y")
     openers = [
-        "You were right there!",
-        "A peaceful orbit above Europe.",
-        "I hope you had a beautiful day under this sky.",
-        "Let's hope today brings even clearer skies.",
-        "Clouds may come and go,beauty stays above.",
-        "From 36,000 km away, this was yesterday’s Europe.",
-        "Every day, another view of our shared atmosphere.",
-        "A reminder of how small and connected we all are.",
-        "Yesterday’s Earth from space!",
+        "You were right there! 🌍",
+        "A peaceful orbit above Europe 🛰️",
+        "I hope you had a beautiful day under this sky 🌤️",
+        "Let's hope today brings even clearer skies ☀️",
+        "Clouds may come and go — beauty stays above 🌥️",
+        "From 36,000 km away, this was yesterday’s Europe 💙",
+        "Every day, another view of our shared atmosphere 🌎",
+        "A reminder of how small — and connected — we all are 💫",
+        "Yesterday’s Earth from space — calm, bright, and alive 🌍",
     ]
     opener = random.choice(openers)
     return (
@@ -198,8 +214,18 @@ def post_to_x(message, gif_path=None):
     media_id = None
     if gif_path is not None:
         api_v1 = tweepy.API(auth)
-        logger.info("Uploading media %s", gif_path)
-        media = api_v1.media_upload(filename=str(gif_path))
+        upload_kwargs = {
+            "filename": str(gif_path),
+            "media_category": "tweet_gif",
+        }
+        if gif_path.stat().st_size > 5 * 1024 * 1024:
+            upload_kwargs["chunked"] = True
+        logger.info(
+            "Uploading media %s (%.2f MB)",
+            gif_path,
+            gif_path.stat().st_size / (1024 * 1024),
+        )
+        media = api_v1.media_upload(**upload_kwargs)
         media_id = media.media_id_string
 
     client = tweepy.Client(

@@ -33,6 +33,7 @@
 - Suppress known harmless NumPy/Dask runtime warnings so Action logs stay clean.
 - Resample using a custom pyresample area definition so we no longer depend on the missing `msg_seviri_europe` preset in the Actions environment.
 - Build a daily caption with randomized openers and the formatted date to keep posts fresh while retaining required credits.
+- Generate the GIF via Pillow with palette optimisation and use chunked media uploads to stay within X size limits.
 
 ### Notes from X API Docs Review
 - Ensure posting uses OAuth 1.0a user context, per X API v2 “manage Posts” guidance; v2 `POST /2/tweets` requires signed requests with API key/secret plus access token/secret.
