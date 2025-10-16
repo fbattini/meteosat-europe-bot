@@ -34,14 +34,14 @@ EUROPE_AREA = create_area_def(
     "meteosat_europe_latlon",
     {"proj": "latlong"},
     area_extent=(-25.0, 32.0, 45.0, 70.0),
-    resolution=(0.06, 0.06),
+    resolution=(0.07, 0.07),
 )
 
 # Process only one scene every N products to keep runtime manageable.
 PRODUCT_SAMPLE_STEP = 1
 # Optional: Set to a tuple like (30, 50) to process only that index range for debugging
 # Set to None to process all products
-DEBUG_INDEX_RANGE = (42, 48)  # e.g. (42, 48) to process only products 42-48
+DEBUG_INDEX_RANGE = (44, 48)  # e.g. (42, 48) to process only products 42-48
 
 
 def find_products():
