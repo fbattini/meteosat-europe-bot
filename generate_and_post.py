@@ -163,14 +163,17 @@ def extract_and_generate(products, total_results, out_dir, sample_step=PRODUCT_S
                         scn = scn.resample(EUROPE_AREA)
 
                     if caught_warnings:
-                        skipped_warning += 1
                         first_warning = caught_warnings[0]
-                        logger.warning(
-                            "Skipping %s due to reader warning: %s",
-                            nat.name,
-                            first_warning.message,
-                        )
-                        continue
+                        warn_text = str(first_warning.message)
+                        logger.debug("Reader warning for %s: %s", nat.name, warn_text)
+                        if "quality flag" in warn_text.lower():
+                            skipped_warning += 1
+                            logger.warning(
+                                "Skipping %s due to quality warning: %s",
+                                nat.name,
+                                warn_text,
+                            )
+                            continue
 
                     out_png = tmp_path / f"{nat.stem}.png"
                     scn.save_dataset("natural_color", filename=str(out_png))
