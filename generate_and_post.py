@@ -153,9 +153,28 @@ def extract_and_generate(products, total_results, out_dir, sample_step=PRODUCT_S
 
             for nat in nat_files:
                 try:
-                    scn = Scene(reader="seviri_l1b_native", filenames=[str(nat)])
-                    scn.load(["natural_color"])
-                    scn = scn.resample(EUROPE_AREA)
+                    with warnings.catch_warnings(record=True) as caught_warnings:
+                        warnings.simplefilter("always")
+                        scn = Scene(reader="seviri_l1b_native", filenames=[str(nat)])
+                        scn.load(["natural_color"])
+                        scn = scn.resample(EUROPE_AREA)
+
+                    quality_warn = next(
+                        (
+                            w
+                            for w in caught_warnings
+                            if "quality flag" in str(w.message).lower()
+                        ),
+                        None,
+                    )
+                    if quality_warn is not None:
+                        logger.warning(
+                            "Skipping %s due to quality warning: %s",
+                            nat.name,
+                            quality_warn.message,
+                        )
+                        continue
+
                     out_png = tmp_path / f"{nat.stem}.png"
                     scn.save_dataset("natural_color", filename=str(out_png))
                     frames.append(iio.imread(out_png))
