@@ -195,7 +195,7 @@ def build_success_message() -> str:
         "A peaceful orbit above Europe.",
         "I hope you had a beautiful day under this sky.",
         "Let's hope today brings even clearer skies.",
-        "Clouds may come and go,beauty stays above.",
+        "Clouds may come and go, beauty stays above.",
         "From 36,000 km away, this was yesterday’s Europe.",
         "Every day, another view of our shared atmosphere.",
         "A reminder of how small and connected we all are.",

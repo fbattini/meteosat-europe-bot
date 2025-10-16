@@ -31,6 +31,12 @@ jobs:
         run: python -m pip install -r requirements.txt
 
       - name: Run bot
+        uses: nick-fields/retry-action@v3
+        with:
+          timeout_minutes: 45
+          max_attempts: 3
+          retry_wait_seconds: 60
+          command: python generate_and_post.py
         env:
           X_API_KEY: ${{ secrets.X_API_KEY }}
           X_API_SECRET: ${{ secrets.X_API_SECRET }}
@@ -38,4 +44,3 @@ jobs:
           X_ACCESS_SECRET: ${{ secrets.X_ACCESS_SECRET }}
           EUMETSAT_KEY: ${{ secrets.EUMETSAT_KEY }}
           EUMETSAT_SECRET: ${{ secrets.EUMETSAT_SECRET }}
-        run: python generate_and_post.py
