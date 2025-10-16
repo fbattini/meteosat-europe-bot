@@ -38,7 +38,7 @@ EUROPE_AREA = create_area_def(
 )
 
 # Process only one scene every N products to keep runtime manageable.
-PRODUCT_SAMPLE_STEP = 1
+PRODUCT_SAMPLE_STEP = 32
 
 
 def find_products():
