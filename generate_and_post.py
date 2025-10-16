@@ -38,8 +38,8 @@ EUROPE_AREA = create_area_def(
 )
 
 # Process only one scene every N products to keep runtime manageable.
-PRODUCT_SAMPLE_STEP = 1
-DEBUG_INDEX_RANGE = (30, 50)  # e.g. (42, 48) to process only that slice
+PRODUCT_SAMPLE_STEP = 16
+DEBUG_INDEX_RANGE = None  # e.g. (42, 48) to process only that slice
 
 
 def find_products():
