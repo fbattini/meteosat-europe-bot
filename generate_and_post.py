@@ -39,6 +39,9 @@ EUROPE_AREA = create_area_def(
 
 # Process only one scene every N products to keep runtime manageable.
 PRODUCT_SAMPLE_STEP = 1
+# Optional: Set to a tuple like (30, 50) to process only that index range for debugging
+# Set to None to process all products
+DEBUG_INDEX_RANGE = None  # e.g. (42, 48) to process only products 42-48
 
 
 def find_products():
@@ -89,52 +92,27 @@ def find_products():
     )
 
 
-def extract_and_generate(products, total_results, out_dir, sample_step=PRODUCT_SAMPLE_STEP, start_index=None, end_index=None):
-    """
-    Extract and generate GIF from satellite products.
-
-    Args:
-        products: Iterator of EUMETSAT products
-        total_results: Total number of products available
-        out_dir: Output directory for downloads and GIF
-        sample_step: Process every Nth product (default: PRODUCT_SAMPLE_STEP)
-        start_index: Optional start index (1-based, inclusive). If None, starts from beginning.
-        end_index: Optional end index (1-based, inclusive). If None, processes until end.
-    """
+def extract_and_generate(products, total_results, out_dir, sample_step=PRODUCT_SAMPLE_STEP):
     out_dir.mkdir(parents=True, exist_ok=True)
     frames = []
 
-    # Set default range
-    start_idx = start_index if start_index is not None else 1
-    end_idx = end_index if end_index is not None else total_results
-
     if sample_step > 1:
         logger.info(
-            "Processing every %dth product from index %d to %d (%d total available)",
+            "Processing every %dth product (%d total available)",
             sample_step,
-            start_idx,
-            end_idx,
             total_results,
         )
     else:
-        logger.info(
-            "Processing products from index %d to %d (%d total available)",
-            start_idx,
-            end_idx,
-            total_results,
-        )
+        logger.info("Processing every product (%d total available)", total_results)
+
+    if DEBUG_INDEX_RANGE:
+        logger.info("DEBUG: Will only process products in range %s", DEBUG_INDEX_RANGE)
 
     for index, product in enumerate(products, start=1):
-        # Skip if outside the specified range
-        if index < start_idx or index > end_idx:
-            logger.debug(
-                "Skipping product %d/%d (outside range %d-%d)",
-                index,
-                total_results,
-                start_idx,
-                end_idx,
-            )
-            continue
+        if DEBUG_INDEX_RANGE:
+            start_idx, end_idx = DEBUG_INDEX_RANGE
+            if index < start_idx or index > end_idx:
+                continue
 
         if (index - 1) % sample_step != 0:
             logger.debug(
@@ -334,21 +312,9 @@ if __name__ == "__main__":
     out_dir = pathlib.Path("downloads")
     gif_path = None
 
-    # Optional: Set processing range via environment variables
-    # Example: PROCESS_START_INDEX=1 PROCESS_END_INDEX=43 python generate_and_post.py
-    start_index = 40
-    end_index = 50
-
-    if start_index or end_index:
-        logger.info(
-            "Range override enabled: start_index=%s, end_index=%s",
-            start_index if start_index else "default",
-            end_index if end_index else "default",
-        )
-
     try:
         products, total_results = find_products()
-        gif_path = extract_and_generate(products, total_results, out_dir, start_index=start_index, end_index=end_index)
+        gif_path = extract_and_generate(products, total_results, out_dir)
         post_to_x(success_message, gif_path=gif_path)
     except NoDataAvailable as exc:
         logger.warning("No data available: %s", exc)
