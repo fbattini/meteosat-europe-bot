@@ -89,20 +89,53 @@ def find_products():
     )
 
 
-def extract_and_generate(products, total_results, out_dir, sample_step=PRODUCT_SAMPLE_STEP):
+def extract_and_generate(products, total_results, out_dir, sample_step=PRODUCT_SAMPLE_STEP, start_index=None, end_index=None):
+    """
+    Extract and generate GIF from satellite products.
+
+    Args:
+        products: Iterator of EUMETSAT products
+        total_results: Total number of products available
+        out_dir: Output directory for downloads and GIF
+        sample_step: Process every Nth product (default: PRODUCT_SAMPLE_STEP)
+        start_index: Optional start index (1-based, inclusive). If None, starts from beginning.
+        end_index: Optional end index (1-based, inclusive). If None, processes until end.
+    """
     out_dir.mkdir(parents=True, exist_ok=True)
     frames = []
 
+    # Set default range
+    start_idx = start_index if start_index is not None else 1
+    end_idx = end_index if end_index is not None else total_results
+
     if sample_step > 1:
         logger.info(
-            "Processing every %dth product (%d total available)",
+            "Processing every %dth product from index %d to %d (%d total available)",
             sample_step,
+            start_idx,
+            end_idx,
             total_results,
         )
     else:
-        logger.info("Processing every product (%d total available)", total_results)
+        logger.info(
+            "Processing products from index %d to %d (%d total available)",
+            start_idx,
+            end_idx,
+            total_results,
+        )
 
     for index, product in enumerate(products, start=1):
+        # Skip if outside the specified range
+        if index < start_idx or index > end_idx:
+            logger.debug(
+                "Skipping product %d/%d (outside range %d-%d)",
+                index,
+                total_results,
+                start_idx,
+                end_idx,
+            )
+            continue
+
         if (index - 1) % sample_step != 0:
             logger.debug(
                 "Skipping product %d/%d due to sampling (step=%d)",
@@ -137,7 +170,22 @@ def extract_and_generate(products, total_results, out_dir, sample_step=PRODUCT_S
 
             for nat in nat_files:
                 try:
-                    scn = Scene(reader="seviri_l1b_native", filenames=[str(nat)])
+                    # Catch quality warnings and skip corrupted files
+                    with warnings.catch_warnings(record=True) as w:
+                        warnings.simplefilter("always")
+                        scn = Scene(reader="seviri_l1b_native", filenames=[str(nat)])
+
+                        # Check if quality warning was raised
+                        quality_warnings = [warning for warning in w
+                                          if "quality flag" in str(warning.message).lower()]
+                        if quality_warnings:
+                            logger.warning(
+                                "Skipping %s due to quality flag issue: %s",
+                                nat.name,
+                                quality_warnings[0].message
+                            )
+                            continue
+
                     scn.load(["natural_color"])
                     scn = scn.resample(EUROPE_AREA)
                     out_png = tmp_path / f"{nat.stem}.png"
@@ -243,10 +291,13 @@ def post_to_x(message, gif_path=None):
         file_size = gif_path.stat().st_size
         upload_kwargs = {
             "filename": str(gif_path),
-            "media_category": "tweet_gif",
         }
+        # For smaller GIFs, don't specify media_category - let Twitter auto-detect
+        # For larger files, use chunked upload
         if file_size > 5 * 1024 * 1024:
             upload_kwargs["chunked"] = True
+            upload_kwargs["media_category"] = "tweet_gif"
+
         logger.info(
             "Uploading media %s (%.2f MB)%s",
             gif_path,
@@ -282,9 +333,22 @@ if __name__ == "__main__":
     )
     out_dir = pathlib.Path("downloads")
     gif_path = None
+
+    # Optional: Set processing range via environment variables
+    # Example: PROCESS_START_INDEX=1 PROCESS_END_INDEX=43 python generate_and_post.py
+    start_index = 40
+    end_index = 50
+
+    if start_index or end_index:
+        logger.info(
+            "Range override enabled: start_index=%s, end_index=%s",
+            start_index if start_index else "default",
+            end_index if end_index else "default",
+        )
+
     try:
         products, total_results = find_products()
-        gif_path = extract_and_generate(products, total_results, out_dir)
+        gif_path = extract_and_generate(products, total_results, out_dir, start_index=start_index, end_index=end_index)
         post_to_x(success_message, gif_path=gif_path)
     except NoDataAvailable as exc:
         logger.warning("No data available: %s", exc)
