@@ -92,6 +92,8 @@ def find_products():
 def extract_and_generate(products, total_results, out_dir, sample_step=PRODUCT_SAMPLE_STEP):
     out_dir.mkdir(parents=True, exist_ok=True)
     frames = []
+    skipped_meta = 0
+    skipped_warning = 0
 
     if sample_step > 1:
         logger.info(
@@ -125,6 +127,7 @@ def extract_and_generate(products, total_results, out_dir, sample_step=PRODUCT_S
                 getattr(product, "id", product),
                 quality_indicator,
             )
+            skipped_meta += 1
             continue
 
         with tempfile.TemporaryDirectory(dir=out_dir) as tmp_dir:
@@ -159,19 +162,13 @@ def extract_and_generate(products, total_results, out_dir, sample_step=PRODUCT_S
                         scn.load(["natural_color"])
                         scn = scn.resample(EUROPE_AREA)
 
-                    quality_warn = next(
-                        (
-                            w
-                            for w in caught_warnings
-                            if "quality flag" in str(w.message).lower()
-                        ),
-                        None,
-                    )
-                    if quality_warn is not None:
+                    if caught_warnings:
+                        skipped_warning += 1
+                        first_warning = caught_warnings[0]
                         logger.warning(
-                            "Skipping %s due to quality warning: %s",
+                            "Skipping %s due to reader warning: %s",
                             nat.name,
-                            quality_warn.message,
+                            first_warning.message,
                         )
                         continue
 
@@ -186,6 +183,12 @@ def extract_and_generate(products, total_results, out_dir, sample_step=PRODUCT_S
 
     gif_path = out_dir / "Meteosat_Europe.gif"
     iio.imwrite(gif_path, frames, duration=0.25, loop=0)
+    logger.info(
+        "Quality filter summary: skipped_meta=%d skipped_warning=%d kept_frames=%d",
+        skipped_meta,
+        skipped_warning,
+        len(frames),
+    )
     logger.info(
         "GIF saved to %s using %d frames out of %d products (step=%d)",
         gif_path,
