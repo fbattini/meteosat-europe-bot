@@ -322,6 +322,7 @@ if __name__ == "__main__":
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s - %(message)s",
     )
+    logger.setLevel(logging.DEBUG)
     out_dir = pathlib.Path("downloads")
     gif_path = None
     try:
