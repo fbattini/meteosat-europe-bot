@@ -28,5 +28,4 @@ Below is an example Meteosat SEVIRI *Natural Color Composite* animation of Europ
 ---
 
 ### License
-This repository’s code is released under the **MIT License**,  
-while data and imagery are © **EUMETSAT** and subject to their data policy.
+This repository’s code is released under the **MIT License**, while data and imagery are © **EUMETSAT** and subject to their data policy.
