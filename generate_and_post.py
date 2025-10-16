@@ -1,7 +1,6 @@
 import logging
 import os
 import sys
-import random
 from datetime import datetime, timedelta, timezone
 import pathlib
 import shutil
@@ -189,15 +188,15 @@ def build_success_message() -> str:
     yesterday = datetime.now(timezone.utc).date() - timedelta(days=1)
     date_str = yesterday.strftime("%B %d, %Y")
     openers = [
-        "You were right there! 🌍",
-        "A peaceful orbit above Europe 🛰️",
-        "I hope you had a beautiful day under this sky 🌤️",
-        "Let's hope today brings even clearer skies ☀️",
-        "Clouds may come and go — beauty stays above 🌥️",
-        "From 36,000 km away, this was yesterday’s Europe 💙",
-        "Every day, another view of our shared atmosphere 🌎",
-        "A reminder of how small — and connected — we all are 💫",
-        "Yesterday’s Earth from space — calm, bright, and alive 🌍",
+        "You were right there!",
+        "A peaceful orbit above Europe.",
+        "I hope you had a beautiful day under this sky.",
+        "Let's hope today brings even clearer skies.",
+        "Clouds may come and go,beauty stays above.",
+        "From 36,000 km away, this was yesterday’s Europe.",
+        "Every day, another view of our shared atmosphere.",
+        "A reminder of how small and connected we all are.",
+        "Yesterday’s Earth from space!",
     ]
     opener = random.choice(openers)
     return (
@@ -249,7 +248,11 @@ def post_to_x(message, gif_path=None):
     logger.info("Post published successfully.")
 
 if __name__ == "__main__":
-    success_message = build_success_message()
+    SUCCESS_MESSAGE = (
+        "Meteosat SEVIRI view over Europe\n"
+        "Data (c) EUMETSAT\n"
+        "#Meteosat #EUMETSAT #EarthObservation"
+    )
     FALLBACK_MESSAGE = (
         "Meteosat Europe update: no new SEVIRI imagery available today. "
         "We will be back with fresh data soon. #Meteosat #EUMETSAT"
@@ -264,7 +267,7 @@ if __name__ == "__main__":
     try:
         products, total_results = find_products()
         gif_path = extract_and_generate(products, total_results, out_dir)
-        post_to_x(success_message, gif_path=gif_path)
+        post_to_x(SUCCESS_MESSAGE, gif_path=gif_path)
     except NoDataAvailable as exc:
         logger.warning("No data available: %s", exc)
         post_to_x(FALLBACK_MESSAGE)
