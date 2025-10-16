@@ -39,7 +39,6 @@ EUROPE_AREA = create_area_def(
 
 # Process only one scene every N products to keep runtime manageable.
 PRODUCT_SAMPLE_STEP = 1
-DEBUG_INDEX_RANGE = (35, 70)  # e.g. (42, 48) to restrict processing
 
 
 def find_products():
@@ -93,8 +92,6 @@ def find_products():
 def extract_and_generate(products, total_results, out_dir, sample_step=PRODUCT_SAMPLE_STEP):
     out_dir.mkdir(parents=True, exist_ok=True)
     frames = []
-    skipped_meta = 0
-    skipped_warning = 0
 
     if sample_step > 1:
         logger.info(
@@ -106,10 +103,6 @@ def extract_and_generate(products, total_results, out_dir, sample_step=PRODUCT_S
         logger.info("Processing every product (%d total available)", total_results)
 
     for index, product in enumerate(products, start=1):
-        if DEBUG_INDEX_RANGE:
-            start_idx, end_idx = DEBUG_INDEX_RANGE
-            if index < start_idx or index > end_idx:
-                continue
         if (index - 1) % sample_step != 0:
             logger.debug(
                 "Skipping product %d/%d due to sampling (step=%d)",
@@ -118,23 +111,6 @@ def extract_and_generate(products, total_results, out_dir, sample_step=PRODUCT_S
                 sample_step,
             )
             continue
-
-        quality_indicator = (
-            getattr(product, "properties", {}) or {}
-        ).get("qualityIndicator") or (
-            getattr(product, "metadata", {}) or {}
-        ).get("qualityIndicator")
-        if quality_indicator and str(quality_indicator).upper() not in {"OK", "NOMINAL"}:
-            logger.warning(
-                "[%d/%d] Skipping %s due to qualityIndicator=%s",
-                index,
-                total_results,
-                getattr(product, "id", product),
-                quality_indicator,
-            )
-            skipped_meta += 1
-            continue
-
         with tempfile.TemporaryDirectory(dir=out_dir) as tmp_dir:
             tmp_path = pathlib.Path(tmp_dir)
             zip_path = tmp_path / "product.zip"
@@ -161,18 +137,9 @@ def extract_and_generate(products, total_results, out_dir, sample_step=PRODUCT_S
 
             for nat in nat_files:
                 try:
-                    with warnings.catch_warnings(record=True) as caught_warnings:
-                        warnings.simplefilter("always")
-                        scn = Scene(reader="seviri_l1b_native", filenames=[str(nat)])
-                        scn.load(["natural_color"])
-                        scn = scn.resample(EUROPE_AREA)
-
-                    if caught_warnings:
-                        if any("quality flag" in str(w.message).lower() for w in caught_warnings):
-                            skipped_warning += 1
-                            logger.warning("Skipping %s due to SEVIRI quality flag.", nat.name)
-                            continue
-
+                    scn = Scene(reader="seviri_l1b_native", filenames=[str(nat)])
+                    scn.load(["natural_color"])
+                    scn = scn.resample(EUROPE_AREA)
                     out_png = tmp_path / f"{nat.stem}.png"
                     scn.save_dataset("natural_color", filename=str(out_png))
                     frames.append(iio.imread(out_png))
@@ -184,12 +151,6 @@ def extract_and_generate(products, total_results, out_dir, sample_step=PRODUCT_S
 
     gif_path = out_dir / "Meteosat_Europe.gif"
     iio.imwrite(gif_path, frames, duration=0.25, loop=0)
-    logger.info(
-        "Quality filter summary: skipped_meta=%d skipped_warning=%d kept_frames=%d",
-        skipped_meta,
-        skipped_warning,
-        len(frames),
-    )
     logger.info(
         "GIF saved to %s using %d frames out of %d products (step=%d)",
         gif_path,
@@ -208,7 +169,7 @@ def build_success_message() -> str:
         "A peaceful orbit above Europe.",
         "I hope you had a beautiful day under this sky.",
         "Let's hope today brings even clearer skies.",
-        "Clouds may come and go, beauty stays above.",
+        "Clouds may come and go,beauty stays above.",
         "From 36,000 km away, this was yesterday’s Europe.",
         "Every day, another view of our shared atmosphere.",
         "A reminder of how small and connected we all are.",
@@ -319,7 +280,6 @@ if __name__ == "__main__":
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s - %(message)s",
     )
-    logger.setLevel(logging.DEBUG)
     out_dir = pathlib.Path("downloads")
     gif_path = None
     try:
