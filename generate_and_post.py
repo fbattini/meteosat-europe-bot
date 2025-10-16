@@ -246,7 +246,7 @@ def build_success_message() -> str:
     return (
         f"{opener}\n\n"
         f"Meteosat SEVIRI view over Europe – {date_str}\n"
-        "Data © EUMETSAT | Natural Color Composite\n"
+        "Data © @eumetsat | Natural Color Composite\n"
         f"{hashtags}"
     )
 
