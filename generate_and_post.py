@@ -163,9 +163,10 @@ def extract_and_generate(products, total_results, out_dir, sample_step=PRODUCT_S
                         scn = scn.resample(EUROPE_AREA)
 
                     if caught_warnings:
+                        for warn in caught_warnings:
+                            logger.debug("Reader warning for %s: %s", nat.name, warn.message)
                         first_warning = caught_warnings[0]
                         warn_text = str(first_warning.message)
-                        logger.debug("Reader warning for %s: %s", nat.name, warn_text)
                         if "quality flag" in warn_text.lower():
                             skipped_warning += 1
                             logger.warning(
