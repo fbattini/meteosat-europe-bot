@@ -1,6 +1,7 @@
 import logging
 import os
 import sys
+import random
 from datetime import datetime, timedelta, timezone
 import pathlib
 import shutil
@@ -9,10 +10,10 @@ import zipfile
 import warnings
 
 import eumdac
+import imageio.v3 as iio
 import tweepy
 from satpy import Scene
 from pyresample import create_area_def
-from PIL import Image
 
 
 logger = logging.getLogger(__name__)
@@ -33,7 +34,7 @@ EUROPE_AREA = create_area_def(
     "meteosat_europe_latlon",
     {"proj": "latlong"},
     area_extent=(-25.0, 32.0, 45.0, 70.0),
-    resolution=(0.05, 0.05),
+    resolution=(0.1, 0.1),
 )
 
 # Process only one scene every N products to keep runtime manageable.
@@ -91,7 +92,6 @@ def find_products():
 def extract_and_generate(products, total_results, out_dir, sample_step=PRODUCT_SAMPLE_STEP):
     out_dir.mkdir(parents=True, exist_ok=True)
     frames = []
-    palette_base = None
 
     if sample_step > 1:
         logger.info(
@@ -142,17 +142,7 @@ def extract_and_generate(products, total_results, out_dir, sample_step=PRODUCT_S
                     scn = scn.resample(EUROPE_AREA)
                     out_png = tmp_path / f"{nat.stem}.png"
                     scn.save_dataset("natural_color", filename=str(out_png))
-                    with Image.open(out_png) as img:
-                        rgb = img.convert("RGB")
-                        if palette_base is None:
-                            pal_frame = rgb.convert("P", palette=Image.ADAPTIVE, colors=256)
-                            palette_base = pal_frame.copy()
-                            frames.append(pal_frame.copy())
-                        else:
-                            pal_frame = rgb.quantize(
-                                palette=palette_base, dither=Image.NONE
-                            )
-                            frames.append(pal_frame.copy())
+                    frames.append(iio.imread(out_png))
                 except Exception as exc:
                     logger.warning("Error processing %s: %s", nat.name, exc)
 
@@ -160,26 +150,13 @@ def extract_and_generate(products, total_results, out_dir, sample_step=PRODUCT_S
         raise RuntimeError("No frames generated from extracted data.")
 
     gif_path = out_dir / "Meteosat_Europe.gif"
-    duration_ms = int(0.25 * 1000)
-    first_frame, *remaining_frames = frames
-    first_frame.save(
-        gif_path,
-        format="GIF",
-        save_all=True,
-        append_images=remaining_frames,
-        duration=duration_ms,
-        loop=0,
-        optimize=True,
-        disposal=2,
-    )
-    size_mb = gif_path.stat().st_size / (1024 * 1024)
+    iio.imwrite(gif_path, frames, duration=0.25, loop=0)
     logger.info(
-        "GIF saved to %s using %d frames out of %d products (step=%d, %.2f MB)",
+        "GIF saved to %s using %d frames out of %d products (step=%d)",
         gif_path,
         len(frames),
         total_results,
         sample_step,
-        size_mb,
     )
     return gif_path
 
@@ -221,18 +198,8 @@ def post_to_x(message, gif_path=None):
     media_id = None
     if gif_path is not None:
         api_v1 = tweepy.API(auth)
-        upload_kwargs = {
-            "filename": str(gif_path),
-            "media_category": "tweet_gif",
-        }
-        if gif_path.stat().st_size > 5 * 1024 * 1024:
-            upload_kwargs["chunked"] = True
-        logger.info(
-            "Uploading media %s (%.2f MB)",
-            gif_path,
-            gif_path.stat().st_size / (1024 * 1024),
-        )
-        media = api_v1.media_upload(**upload_kwargs)
+        logger.info("Uploading media %s", gif_path)
+        media = api_v1.media_upload(filename=str(gif_path))
         media_id = media.media_id_string
 
     client = tweepy.Client(
@@ -248,11 +215,7 @@ def post_to_x(message, gif_path=None):
     logger.info("Post published successfully.")
 
 if __name__ == "__main__":
-    SUCCESS_MESSAGE = (
-        "Meteosat SEVIRI view over Europe\n"
-        "Data (c) EUMETSAT\n"
-        "#Meteosat #EUMETSAT #EarthObservation"
-    )
+    success_message = build_success_message()
     FALLBACK_MESSAGE = (
         "Meteosat Europe update: no new SEVIRI imagery available today. "
         "We will be back with fresh data soon. #Meteosat #EUMETSAT"
@@ -267,7 +230,7 @@ if __name__ == "__main__":
     try:
         products, total_results = find_products()
         gif_path = extract_and_generate(products, total_results, out_dir)
-        post_to_x(SUCCESS_MESSAGE, gif_path=gif_path)
+        post_to_x(success_message, gif_path=gif_path)
     except NoDataAvailable as exc:
         logger.warning("No data available: %s", exc)
         post_to_x(FALLBACK_MESSAGE)

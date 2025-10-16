@@ -32,12 +32,7 @@
 - ~~Sample every 32nd product (configurable) to reduce processing time while maintaining temporal coverage.~~ (sampling removed; processing every product again)
 - Suppress known harmless NumPy/Dask runtime warnings so Action logs stay clean.
 - Resample using a custom pyresample area definition so we no longer depend on the missing `msg_seviri_europe` preset in the Actions environment.
-<<<<<<< HEAD
 - Build a daily caption with randomized openers and the formatted date to keep posts fresh while retaining required credits.
-- Generate the GIF via Pillow with palette optimisation and use chunked media uploads to stay within X size limits.
-- Reuse the first frame’s palette for all GIF frames to improve compatibility with X’s media decoder.
-=======
->>>>>>> parent of 597743a (Personalized message)
 
 ### Notes from X API Docs Review
 - Ensure posting uses OAuth 1.0a user context, per X API v2 “manage Posts” guidance; v2 `POST /2/tweets` requires signed requests with API key/secret plus access token/secret.
